@@ -1,0 +1,25 @@
+# 敏感文件
+*cookies*.json
+*storage_state*.json
+*fresh_cookies*.json
+session_state.json
+*.env
+
+# 数据归档
+data/
+downloads/
+output/
+exports/
+cloakbrowser_output/
+cloak_profiles/
+
+# 运行时
+node_modules/
+*.log
+counter.json
+jobs.json
+downloaded_awemes.json
+watched_user_pages.json
+
+# 备份文件
+*.bak*

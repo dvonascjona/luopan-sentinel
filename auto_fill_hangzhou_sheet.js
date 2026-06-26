@@ -19,7 +19,7 @@ const { execSync } = require('child_process');
 
 const SHEET_URL  = 'https://tcn8a0whihnj.feishu.cn/sheets/PsAbsD9YNhVlowtmVZHcfXu9nIg';
 const SHEET_ID   = '0UqBfV';
-const CHAT_ID    = 'oc_af2b50b253a140dafe12c2d2a1acd9e9';
+const CHAT_ID    = require('./feishu_config.cjs').CHAT_ID;
 const LIVE_CLEAN = '/opt/douyin-fetcher/data/live_clean.json';
 const RECLEAN    = 'node /opt/douyin-fetcher/clean_live_data.js';  // 2026-06-26 清洗从 n8n webhook 迁出为独立脚本
 const IMG = { Q: '/tmp/sc_pro.png', R: '/tmp/sc_basic.png', S: '/tmp/sc_qc.png' };

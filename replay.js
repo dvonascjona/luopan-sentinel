@@ -4,7 +4,7 @@ const { execSync } = require('child_process');
 
 const ARCHIVE_DIR = '/opt/douyin-fetcher/data';
 const REPLAY_LOG  = '/opt/douyin-fetcher/data/replay_log.json';
-const CHAT_ID     = 'oc_af2b50b253a140dafe12c2d2a1acd9e9';
+const CHAT_ID     = require('./feishu_config.cjs').CHAT_ID;
 
 const FEISHU_APP_TOKEN  = process.env.FEISHU_APP_TOKEN  || '';
 const FEISHU_TABLE_ID   = process.env.FEISHU_TABLE_ID   || '';

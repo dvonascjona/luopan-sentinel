@@ -7,7 +7,7 @@ const fs            = require('fs');
 
 const COOKIES_PATH  = '/opt/douyin-fetcher/fresh_cookies.json';
 const SCREEN_OUT    = '/opt/douyin-fetcher/data/screen_clean.json';
-const CHAT_ID       = 'oc_af2b50b253a140dafe12c2d2a1acd9e9';
+const CHAT_ID       = require('./feishu_config.cjs').CHAT_ID;
 const STORAGE_FILE  = '/opt/douyin-fetcher/full_storage_state.json';
 
 const SS_MAP = { 'no_restriction':'None', 'lax':'Lax', 'strict':'Strict' };

@@ -11,7 +11,7 @@ const { execSync } = require('child_process');
 const CLEAN_FILE   = '/opt/douyin-fetcher/data/live_clean.json';
 const SNAP_DIR     = '/opt/douyin-fetcher/data/snapshots';
 const SNAP_LATEST  = '/opt/douyin-fetcher/data/snapshot_latest.json';
-const CHAT_ID      = 'oc_af2b50b253a140dafe12c2d2a1acd9e9';
+const CHAT_ID      = require('./feishu_config.cjs').CHAT_ID;
 
 // ── 工具函数 ──────────────────────────────────────────────────────────────
 function n(v, digits = 0) {

@@ -4,7 +4,8 @@
 import * as lark from "@larksuiteoapi/node-sdk";
 import { execSync, spawn } from "child_process";
 import fs from "fs";
-import { CHAT_ID } from "./feishu_config.mjs";
+import config from "./feishu_config.cjs";
+const { CHAT_ID } = config;
 
 const WORKDIR    = "/opt/douyin-fetcher";
 const EVENT_KEY  = "refresh_douyin_cookie";

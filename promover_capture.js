@@ -10,7 +10,7 @@ const fs = require('fs');
 const STORAGE_FILE = '/opt/douyin-fetcher/full_storage_state.json';
 const FXG_STORAGE  = '/opt/douyin-fetcher/fxg_storage_state.json';
 const OUT_FILE     = '/opt/douyin-fetcher/data/promover_clean.json';
-const CHAT_ID      = 'oc_af2b50b253a140dafe12c2d2a1acd9e9';
+const CHAT_ID      = require('./feishu_config.cjs').CHAT_ID;
 const AAVID        = '1845951364198153';
 const SHOP_ID      = '235448269';
 

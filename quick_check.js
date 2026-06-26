@@ -16,7 +16,7 @@ const { execSync } = require('child_process');
 
 const STORAGE_FILE  = '/opt/douyin-fetcher/full_storage_state.json';
 const SNAPSHOT_FILE = '/opt/douyin-fetcher/data/snapshot_latest.json';
-const CHAT_ID       = 'oc_af2b50b253a140dafe12c2d2a1acd9e9';
+const CHAT_ID       = require('./feishu_config.cjs').CHAT_ID;
 
 // 预警阈值（change_value 是小数，-0.60 = -60%）
 const THR = {

@@ -4,7 +4,8 @@
 import { launch } from "/opt/douyin-fetcher/node_modules/cloakbrowser/dist/index.js";
 import { execSync } from "child_process";
 import fs from "fs";
-import { CHAT_ID } from "./feishu_config.mjs";
+import config from "./feishu_config.cjs";
+const { CHAT_ID } = config;
 
 const QR_PATH    = "/tmp/qr_login.png";
 const COOKIE_OUT = "/opt/douyin-fetcher/fresh_cookies.json";

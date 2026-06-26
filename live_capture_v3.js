@@ -3,7 +3,7 @@ const fs = require('fs');
 
 const COOKIES_PATH = '/opt/douyin-fetcher/fresh_cookies.json';
 const DATA_OUT     = '/opt/1panel/apps/memoh-service-node/data/shared/live_data.json';
-const CHAT_ID      = 'oc_af2b50b253a140dafe12c2d2a1acd9e9';
+const CHAT_ID      = require('./feishu_config.cjs').CHAT_ID;
 
 const SS_MAP = { 'no_restriction':'None', 'lax':'Lax', 'strict':'Strict' };
 function convertCookies(raw) {

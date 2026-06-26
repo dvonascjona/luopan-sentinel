@@ -705,30 +705,35 @@ async function main() {
       // 额外停顿，确保图表/数字渲染完再截图
       await qcPage.waitForTimeout(rnd(2000, 3000));
 
-      // 查 .card-item 位置和标签文字，存 JSON 供 PIL 叠字
+      // DOM 原生标签注入（替代旧 PIL 叠字）：
+      // 千川 KPI 标签文字锁在 .card-item > .metric-name 内的 oc-popover/.width-desc 里，
+      // 无头下组件宽度测量=0 永久 display:none → 标签不可见（但文字在 DOM 里真实存在）。
+      // 做法：把 .width-desc 真文字写进 .metric-name 容器并清掉坏组件，浏览器原生渲染后截图直接捕获。
+      // ── 视觉可调常量（首轮按真实截图微调）──
+      const LABEL_CSS = 'color:#8c94a8;font-size:13px;line-height:18px;white-space:nowrap;font-weight:400;font-family:inherit;letter-spacing:0;text-align:left;';
       try {
-        const metricData = await qcPage.evaluate(() => {
-          return Array.from(document.querySelectorAll('.card-item')).map(el => {
-            const r = el.getBoundingClientRect();
-            const span = el.querySelector('.width-desc');
-            return {
-              label: span ? span.textContent.trim() : '',
-              x: Math.round(r.left), y: Math.round(r.top),
-              w: Math.round(r.width), h: Math.round(r.height)
-            };
-          }).filter(i => i.label && i.w > 5 && i.h > 5);
-        });
-        require('fs').writeFileSync('/tmp/qc_metric_pos.json', JSON.stringify(metricData));
-        console.log('[12] metric positions:', metricData.length, 'items, sample:', metricData[0]?.label);
-      } catch(e) { console.log('[12] metric pos failed:', e.message.slice(0,60)); }
+        const injected = await qcPage.evaluate((css) => {
+          let n = 0;
+          document.querySelectorAll('.card-item').forEach(card => {
+            const desc = card.querySelector('.width-desc');
+            const nameBox = card.querySelector('.metric-name');
+            if (!desc || !nameBox) return;
+            const text = desc.textContent.trim();
+            if (!text) return;
+            const lbl = document.createElement('div');
+            lbl.className = '__inj_metric_label';
+            lbl.textContent = text;
+            lbl.style.cssText = css;
+            nameBox.innerHTML = '';        // 清掉坏掉的 oc-popover 占位
+            nameBox.appendChild(lbl);
+            n++;
+          });
+          return n;
+        }, LABEL_CSS);
+        console.log('[12] DOM 原生标签注入:', injected, '个 KPI');
+      } catch(e) { console.log('[12] 标签注入失败:', e.message.slice(0,80)); }
+      await qcPage.waitForTimeout(400);   // 让注入元素 paint 一帧
       await qcPage.screenshot({ path: '/tmp/sc_qc.png', fullPage: false });
-
-      // PIL 叠字：将标签文字叠到截图上（Vue tooltip 组件自动化不渲染可见标签）
-      try {
-        const { execSync } = require('child_process');
-        execSync('python3 /opt/douyin-fetcher/overlay_qc_labels.py /tmp/sc_qc.png /tmp/sc_qc.png /tmp/qc_metric_pos.json 2>&1', { timeout: 10000 });
-        console.log('[12] PIL label overlay done');
-      } catch(e) { console.log('[12] PIL overlay failed:', e.message.slice(0,80)); }
       // 还原：移除注入 CSS
       await qcPage.evaluate(() => {
         const s = document.getElementById('__hide_overlays__');

@@ -4,9 +4,9 @@
 import * as lark from "@larksuiteoapi/node-sdk";
 import { execSync, spawn } from "child_process";
 import fs from "fs";
+import { CHAT_ID } from "./feishu_config.mjs";
 
 const WORKDIR    = "/opt/douyin-fetcher";
-const CHAT_ID    = "oc_af2b50b253a140dafe12c2d2a1acd9e9";
 const EVENT_KEY  = "refresh_douyin_cookie";
 const QR_SCRIPT  = "qr_login_cloak.mjs";
 const TRIGGER_LOG= "/tmp/qr_login_trigger.log";

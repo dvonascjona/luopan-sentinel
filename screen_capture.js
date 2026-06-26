@@ -710,7 +710,7 @@ async function main() {
       // 无头下组件宽度测量=0 永久 display:none → 标签不可见（但文字在 DOM 里真实存在）。
       // 做法：把 .width-desc 真文字写进 .metric-name 容器并清掉坏组件，浏览器原生渲染后截图直接捕获。
       // ── 视觉可调常量（首轮按真实截图微调）──
-      const LABEL_CSS = 'color:#c2cbdb;font-size:13px;line-height:18px;white-space:nowrap;font-weight:400;font-family:inherit;letter-spacing:0;text-align:left;';
+      const LABEL_CSS = 'color:#e6ebf3;font-size:14px;line-height:19px;white-space:nowrap;font-weight:600;font-family:inherit;letter-spacing:0;text-align:left;text-shadow:0 1px 2px rgba(0,0,0,0.55);';
       try {
         const injected = await qcPage.evaluate((css) => {
           let n = 0;

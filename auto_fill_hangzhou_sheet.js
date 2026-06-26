@@ -8,9 +8,9 @@
  *
  * 2026-06-23 freshness 守卫：
  *   minute-0 的 screen_capture 截图采集耗时约 8 分钟，可能晚于 minute-8 的本填表任务。
- *   若 n8n 合并发生在新截图落盘前，live_clean.json 会出现「日期小时(live侧)已是新整点、
+ *   若 clean 合并发生在新截图落盘前，live_clean.json 会出现「日期小时(live侧)已是新整点、
  *   但 bjHour、screen 与 qc(截图侧) 仍是上一整点」的错位 → 旧值被写进新行（两行数字一样）。
- *   守卫：写入前校验 bjHour 整点 == 日期小时整点，stale 则重触发 n8n clean 并重试，
+ *   守卫：写入前校验 bjHour 整点 == 日期小时整点，stale 则重跑 clean 脚本(clean_live_data.js)并重试，
  *   重试上限内仍 stale 即 die()（决不静默写旧值）。
  *   注：qc_bjTime 字段刷新不可靠（即便 qc 数据已更新也可能停在旧值），故只用 bjHour 判新鲜。
  */
@@ -21,7 +21,7 @@ const SHEET_URL  = 'https://tcn8a0whihnj.feishu.cn/sheets/PsAbsD9YNhVlowtmVZHcfX
 const SHEET_ID   = '0UqBfV';
 const CHAT_ID    = 'oc_af2b50b253a140dafe12c2d2a1acd9e9';
 const LIVE_CLEAN = '/opt/douyin-fetcher/data/live_clean.json';
-const N8N_CLEAN  = 'curl -s -X POST http://localhost:5678/webhook/live-data-clean';
+const RECLEAN    = 'node /opt/douyin-fetcher/clean_live_data.js';  // 2026-06-26 清洗从 n8n webhook 迁出为独立脚本
 const IMG = { Q: '/tmp/sc_pro.png', R: '/tmp/sc_basic.png', S: '/tmp/sc_qc.png' };
 
 function larkSend(msg) {
@@ -87,8 +87,8 @@ for (let attempt = 1; attempt <= MAX_TRY; attempt++) {
         '点，重试 ' + MAX_TRY + ' 次后仍未刷新（minute-0 截图采集未完成，拒绝写旧值）');
   }
   console.log('[STALE] 第' + attempt + '次：bjHour=' + screenHour + ' ≠ 日期小时' + captureHour +
-              '，重触发 n8n clean 后 25s 重试');
-  try { execSync(N8N_CLEAN, { timeout: 30000, stdio: 'pipe' }); } catch (e) {}
+              '，重跑 clean 脚本后 25s 重试');
+  try { execSync(RECLEAN, { timeout: 30000, stdio: 'pipe' }); } catch (e) {}
   execSync('sleep 25');
 }
 

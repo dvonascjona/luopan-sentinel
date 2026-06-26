@@ -12,7 +12,7 @@ cron (每小时整点)
   └─ screen_capture.js         # 直播大屏 + 千川 截图 + API数据
   └─ promover_capture.js       # 达人素材数据
   └─ route_b_pull.js           # 补充数据源
-       └─ n8n webhook           # 数据清洗管线
+       └─ clean_live_data.js    # 数据清洗（Node 脚本，输出 80 字段）
             └─ live_clean.json  # 统一输出
                  └─ auto_fill_hangzhou_sheet.js  # 飞书自动填表
 ```
@@ -25,7 +25,6 @@ cron (每小时整点)
 
 - Linux 服务器（内存 ≥ 3.6G，同时只能跑一个 CloakBrowser 实例）
 - Node.js 18+
-- n8n（Docker 部署）
 - lark-cli（飞书命令行工具）
 
 ### 2. 安装依赖
@@ -43,17 +42,7 @@ npm install cloakbrowser
 
 CloakBrowser 是本项目的核心反检测浏览器，详见下方「风控绕过」章节。
 
-### 4. 配置 n8n
-
-导入工作流：
-
-```bash
-n8n import:workflow --input=n8n_workflows_export.json
-```
-
-启动 n8n 后激活「🔧 直播数据清洗管线」工作流（ID: `5wha4FMrZzhOWyye`），监听 `POST /webhook/live-data-clean`。
-
-### 5. 配置 lark-cli
+### 4. 配置 lark-cli
 
 ```bash
 npm install -g lark-cli
@@ -82,7 +71,7 @@ crontab -e
 
 ```cron
 # 罗盘直播数据
-0 0,1,8-23 * * * cd /opt/douyin-fetcher && (node live_capture_v3.js || (sleep 300 && node live_capture_v3.js)) >> /tmp/luopan_cron.log 2>&1 && sleep 30 && curl -s -X POST http://localhost:5678/webhook/live-data-clean >> /tmp/luopan_cron.log 2>&1
+0 0,1,8-23 * * * cd /opt/douyin-fetcher && (node live_capture_v3.js || (sleep 300 && node live_capture_v3.js)) >> /tmp/luopan_cron.log 2>&1 && sleep 30 && (node clean_live_data.js || echo "[CLEAN FAIL] $(TZ=Asia/Shanghai date)") >> /tmp/luopan_cron.log 2>&1
 
 # 直播大屏截图
 0 8-23,0,1 * * * cd /opt/douyin-fetcher && (node screen_capture.js || (sleep 300 && node screen_capture.js --retry)) >> /tmp/screen_cron.log 2>&1 && node extract_screen_summary.js >> /tmp/screen_cron.log 2>&1
@@ -90,8 +79,11 @@ crontab -e
 # 达人素材数据
 35 8-23,0,1 * * * cd /opt/douyin-fetcher && flock -xn /tmp/promover.lock node promover_capture.js >> /tmp/promover_cron.log 2>&1 && node extract_promover_summary.js >> /tmp/promover_cron.log 2>&1
 
-# 飞书自动填表（按值班时段调整小时范围）
-8 8-16 * * * cd /opt/douyin-fetcher && flock -xn /tmp/autofill.lock node auto_fill_hangzhou_sheet.js >> /tmp/autofill.log 2>&1
+# Route B 补充数据 + 清洗 + 小时报告
+30 8-23,0,1 * * * cd /opt/douyin-fetcher && flock -xn /tmp/route_b_pull.lock node route_b_pull.js >> /tmp/route_b_pull.log 2>&1 && node extract_screen_summary.js >> /tmp/route_b_pull.log 2>&1 && (node clean_live_data.js || echo "[CLEAN FAIL] $(TZ=Asia/Shanghai date)") >> /tmp/route_b_pull.log 2>&1 && sleep 10 && node hourly_report.js >> /tmp/hourly_report.log 2>&1
+
+# 飞书自动填表（按值班时段调整小时范围，当前 8:00-次日01:00）
+8 8-23,0,1 * * * cd /opt/douyin-fetcher && flock -xn /tmp/autofill.lock node auto_fill_hangzhou_sheet.js >> /tmp/autofill.log 2>&1
 
 # 磁盘自动清理（3天前归档）+ 告警
 0 3 * * * find /opt/douyin-fetcher/data -name "*_2026-*.json" -mtime +3 -delete >> /tmp/disk_clean.log 2>&1 && bash /opt/douyin-fetcher/disk_alert.sh >> /tmp/disk_clean.log 2>&1
@@ -200,6 +192,5 @@ find /opt/douyin-fetcher/data -name "*_2026-*.json" -mtime +3 -delete
 | `hourly_report.js` | 每小时数据报告 |
 | `quick_check.js` | 5分钟快速数据检查 |
 | `creative_check.js` | 创意素材状态检查 |
+| `clean_live_data.js` | 数据清洗脚本（罗盘+大屏+千川合并，输出 80 字段） |
 | `disk_alert.sh` | 磁盘占用告警脚本 |
-| `n8n_workflows_export.json` | n8n 工作流备份（5个） |
-| `docs/` | 七文档体系（架构/步骤/工作流/技术债） |

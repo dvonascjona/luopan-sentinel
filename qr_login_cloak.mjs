@@ -12,9 +12,10 @@ const STATE_OUT  = "/opt/douyin-fetcher/full_storage_state.json";
 const COOKIE_TMP = "/opt/douyin-fetcher/fresh_cookies.json.tmp";
 const STATE_TMP  = "/opt/douyin-fetcher/full_storage_state.json.tmp";
 
-// 启动前清除所有 session 文件
-for (const f of [COOKIE_OUT, STATE_OUT, COOKIE_TMP, STATE_TMP]) {
-  try { fs.unlinkSync(f); console.log("[CLEAN] Removed:", f); } catch(e) {}
+// 启动前只清残留 .tmp —— 绝不删生产 cookie/state(COOKIE_OUT/STATE_OUT)！
+// 扫码成功前采集/填表必须能继续用旧 cookie，成功后才由 renameSync 原子覆盖(CLAUDE.md 2.2)
+for (const f of [COOKIE_TMP, STATE_TMP]) {
+  try { fs.unlinkSync(f); console.log("[CLEAN] Removed tmp:", f); } catch(e) {}
 }
 
 async function larkSend(text) {

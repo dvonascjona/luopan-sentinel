@@ -23,3 +23,7 @@ watched_user_pages.json
 
 # 备份文件
 *.bak*
+
+# CloakBrowser 登录态(安全)
+profiles/
+__pycache__/

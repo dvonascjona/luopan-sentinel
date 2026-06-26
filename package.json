@@ -11,6 +11,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.68.0",
     "bb-browser": "^0.11.3",
     "cloakbrowser": "^0.3.27",
     "express": "^5.2.1",

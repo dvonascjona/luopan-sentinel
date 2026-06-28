@@ -336,7 +336,7 @@ async function main() {
 
   // 备用：live_id 已知时直接构造 URL（core_data 可能受限，报 621000601）
   if (!screenPage && liveId) {
-    const screenUrlFallback = 'https://compass.jinritemai.com/screen/live/talent/live_room_id=' + liveId;
+    const screenUrlFallback = 'https://compass.jinritemai.com/screen/live/talent?live_room_id=' + liveId;
     console.log('[2] Fallback: direct URL (core_data may be limited):', screenUrlFallback);
     larkSend('⚠️ [SCREEN] 按钮点击失败，改用直接 URL，core_data 可能受限');
     const sp = await context.newPage();
@@ -363,6 +363,23 @@ async function main() {
   const liveRoomId = liveRoomIdMatch ? liveRoomIdMatch[1] : liveId;
   console.log('[7] live_room_id:', liveRoomId);
 
+  // 截图守卫(2026-06-28 dv)：确保页面URL带有效 live_room_id，缺失则重导航正确URL重试，防白屏/¥0空图被贴
+  let proBlank = false, basicBlank = false;
+  const ensureScreenRoom = async (page, correctUrl, label) => {
+    for (let i = 1; i <= 3; i++) {
+      const u = page.url();
+      if (/[?&]live_room_id=\d{6,}/.test(u)) {
+        if (i > 1) console.log('[SHOT-GUARD] ' + label + ' 房间已恢复(第' + i + '次): ' + u.substring(0, 90));
+        return true;
+      }
+      console.log('[SHOT-GUARD] ' + label + ' URL缺room_id(第' + i + '次): ' + u.substring(0, 90) + ' 重导航');
+      await page.goto(correctUrl, { waitUntil: 'networkidle', timeout: 30000 }).catch(() => {});
+      await page.waitForTimeout(rnd(4000, 6000));
+    }
+    console.log('[SHOT-GUARD] ' + label + ' 3次后仍无room_id，判定空图');
+    return false;
+  };
+
   // 滚动让主页数据加载
   for (let i = 0; i < 3; i++) {
     await screenPage.evaluate(() => window.scrollBy(0, 400)).catch(()=>{});
@@ -373,12 +390,13 @@ async function main() {
 
   // ── 截图：直播大屏 专业版 ──
   try {
+    proBlank = !(await ensureScreenRoom(screenPage, 'https://compass.jinritemai.com/screen/live/talent?live_room_id=' + liveRoomId, '专业版'));
     await screenPage.evaluate(() => window.scrollTo(0,0)).catch(()=>{});
     await screenPage.waitForTimeout(1500);
     await dismissGuides(screenPage);
     await screenPage.waitForTimeout(500);
     await screenPage.screenshot({ path: '/tmp/sc_pro.png', fullPage: false });
-    console.log('[7] Screenshot: 专业版 saved');
+    console.log('[7] Screenshot: 专业版 saved' + (proBlank ? ' [GUARD:疑似空图]' : ''));
   } catch(e) { console.log('[7] Screenshot pro failed:', e.message.substring(0,60)); }
 
   // ── 基础版截图：监听新 tab + 点卡片，诊断真实跳转路径 ──
@@ -441,13 +459,14 @@ async function main() {
 
     // 判断截图目标：新 tab 优先
     const targetPage = newTab || screenPage;
+    basicBlank = !(await ensureScreenRoom(targetPage, 'https://compass.jinritemai.com/screen/talent/main?live_room_id=' + liveRoomId + '&source=compass_inner', '基础版'));
     await targetPage.waitForTimeout(rnd(3000, 5000));
     await dismissGuides(targetPage);
     await targetPage.waitForTimeout(500);
     await targetPage.evaluate(() => window.scrollTo(0,0)).catch(()=>{});
     await targetPage.waitForTimeout(800);
     await targetPage.screenshot({ path: '/tmp/sc_basic.png', fullPage: false });
-    console.log('[7] Screenshot: 基础版 saved from', newTab ? 'new tab' : 'same tab', targetPage.url());
+    console.log('[7] Screenshot: 基础版 saved' + (basicBlank ? ' [GUARD:疑似空图]' : ''), 'from', newTab ? 'new tab' : 'same tab', targetPage.url());
 
     if (newTab) await newTab.close().catch(()=>{});
 
@@ -894,7 +913,12 @@ async function main() {
       { path: '/tmp/sc_basic.png', label: '📺 直播大屏 基础版' },
       { path: '/tmp/sc_qc.png',    label: '💰 巨量千川' },
     ];
-    const exists = shots.filter(s => fs.existsSync(s.path));
+    const blankMap = { '/tmp/sc_pro.png': proBlank, '/tmp/sc_basic.png': basicBlank };
+    const blanked = shots.filter(s => blankMap[s.path]);
+    if (blanked.length > 0) {
+      larkSend('⚠️ [大屏截图] ' + blanked.map(s => s.label).join('、') + ' 渲染为空(room_id缺失)，已跳过贴图；数字列不受影响(走Route B程序提取)');
+    }
+    const exists = shots.filter(s => fs.existsSync(s.path) && !blankMap[s.path]);
     if (exists.length > 0) {
       larkSend('📸 ' + bjTimeStr + ' 直播大屏截图（共' + exists.length + '张）');
       for (const s of exists) {

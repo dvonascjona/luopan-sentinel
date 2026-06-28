@@ -1,29 +1,26 @@
-# 敏感文件
+# 敏感文件 — 登录态/Cookie 绝不入库
 *cookies*.json
 *storage_state*.json
 *fresh_cookies*.json
 session_state.json
 *.env
+.feishu_menu.env
 
-# 数据归档
+# 数据归档（服务器本地）
 data/
 downloads/
 output/
-exports/
-cloakbrowser_output/
-cloak_profiles/
 
 # 运行时
 node_modules/
 *.log
+*.lock
 counter.json
 jobs.json
-downloaded_awemes.json
-watched_user_pages.json
 
-# 备份文件
+# 备份文件（服务器本地用 .bak.* 命名）
 *.bak*
+*.preB.*
 
-# CloakBrowser 登录态(安全)
-profiles/
-__pycache__/
+# 旧版本文件
+*.fixed.js

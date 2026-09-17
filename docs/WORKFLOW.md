@@ -1,7 +1,19 @@
 <!-- TAG: 规则文档 | 用途: 罗盘哨兵运维SOP与执行流程 | 生成: 2026-05-10 -->
 # 罗盘哨兵 — 工作流（WORKFLOW.md）
 
-> 版本：v1.6 | 更新：2026-06-26
+> 版本：v1.7 | 更新：2026-09-17
+
+**v1.7变更** · 2026-09-17 · dv × Codex
+
+变更内容：
+- [修改] 直播时段改为北京时间每天 **19:30 至次日 12:00**。
+- [修改] 主罗盘采集在 `19:30 / 每小时:00`，大屏截图延后 15 分钟，消除两套 CloakBrowser 并发。
+- [修改] 杭州表填表移到大屏截图完成后；首轮 `19:58`，后续每小时 `:28`。
+- [修改] 乘方首轮移到 `19:55`，后续 `:45`，避开大屏截图窗口。
+
+解决的问题：
+- 不在白天无直播时空跑采集与告警。
+- 腾讯云只有 3.6GiB 内存，主罗盘与大屏并发会触发资源争抢；新时序确保浏览器任务错开。
 
 ---
 
@@ -145,20 +157,35 @@
 ### 完整 Crontab
 
 ```bash
-# 每小时归档 → node 脚本清洗（:00 触发，30s 后跑 clean_live_data.js）[v1.5]
-0 0,1,8-23 * * * cd /opt/douyin-fetcher && (node live_capture_v3.js || (echo "[RETRY] 5min后重试" >> /tmp/luopan_cron.log && sleep 300 && node live_capture_v3.js)) >> /tmp/luopan_cron.log 2>&1 && sleep 30 && (node clean_live_data.js || echo "[CLEAN FAIL] $(TZ=Asia/Shanghai date)") >> /tmp/luopan_cron.log 2>&1
+# 北京时间每天 19:30 开播，次日 12:00 下播；主罗盘与大屏浏览器任务必须错开 15 分钟。
+# 主罗盘归档 → node 清洗：首轮 19:30，之后整点至次日 12:00。
+30 19 * * * cd /opt/douyin-fetcher && (node live_capture_v3.js || (echo "[RETRY] 5min后重试" >> /tmp/luopan_cron.log && sleep 300 && node live_capture_v3.js)) >> /tmp/luopan_cron.log 2>&1 && sleep 30 && (node clean_live_data.js || echo "[CLEAN FAIL] $(TZ=Asia/Shanghai date)" >> /tmp/luopan_cron.log)
+0 20-23,0-12 * * * cd /opt/douyin-fetcher && (node live_capture_v3.js || (echo "[RETRY] 5min后重试" >> /tmp/luopan_cron.log && sleep 300 && node live_capture_v3.js)) >> /tmp/luopan_cron.log 2>&1 && sleep 30 && (node clean_live_data.js || echo "[CLEAN FAIL] $(TZ=Asia/Shanghai date)" >> /tmp/luopan_cron.log)
 
-# 每小时大屏抓取 → extract summary
-0 8-23,0,1 * * * cd /opt/douyin-fetcher && (node screen_capture.js || (echo "[SCREEN RETRY]" >> /tmp/screen_cron.log && sleep 300 && node screen_capture.js)) >> /tmp/screen_cron.log 2>&1 && node extract_screen_summary.js >> /tmp/screen_cron.log 2>&1
+# 大屏截图：首轮 19:45，之后 :15 至次日 11:15；完成后自动发图到飞书群。
+45 19 * * * cd /opt/douyin-fetcher && (node screen_capture.js || (echo "[SCREEN RETRY]" >> /tmp/screen_cron.log && sleep 300 && node screen_capture.js --retry)) >> /tmp/screen_cron.log 2>&1 && node extract_screen_summary.js >> /tmp/screen_cron.log 2>&1
+15 20-23,0-11 * * * cd /opt/douyin-fetcher && (node screen_capture.js || (echo "[SCREEN RETRY]" >> /tmp/screen_cron.log && sleep 300 && node screen_capture.js --retry)) >> /tmp/screen_cron.log 2>&1 && node extract_screen_summary.js >> /tmp/screen_cron.log 2>&1
 
-# 每5分钟快检（随机 jitter 0-60s，flock 防重叠）
-*/5 8-23,0,1 * * * /bin/bash -c "sleep $((RANDOM % 60)) && flock -xn /tmp/quick_check.lock node /opt/douyin-fetcher/quick_check.js" >> /tmp/quick_check.log 2>&1
+# 快检：首轮 19:35，之后每 5 分钟至次日 12:00。
+35-59/5 19 * * * /bin/bash -c "sleep $((RANDOM % 60)) && flock -xn /tmp/quick_check.lock node /opt/douyin-fetcher/quick_check.js" >> /tmp/quick_check.log 2>&1
+*/5 20-23,0-11 * * * /bin/bash -c "sleep $((RANDOM % 60)) && flock -xn /tmp/quick_check.lock node /opt/douyin-fetcher/quick_check.js" >> /tmp/quick_check.log 2>&1
+0 12 * * * /bin/bash -c "sleep $((RANDOM % 60)) && flock -xn /tmp/quick_check.lock node /opt/douyin-fetcher/quick_check.js" >> /tmp/quick_check.log 2>&1
 
-# 每15分钟素材起量检查
-*/15 8-23,0,1 * * * flock -xn /tmp/creative_check.lock node /opt/douyin-fetcher/creative_check.js >> /tmp/creative_check.log 2>&1
+# 素材告警：首轮 19:45，之后每 15 分钟至次日 12:00。
+45 19 * * * flock -xn /tmp/creative_check.lock node /opt/douyin-fetcher/creative_check.js >> /tmp/creative_check.log 2>&1
+*/15 20-23,0-11 * * * flock -xn /tmp/creative_check.lock node /opt/douyin-fetcher/creative_check.js >> /tmp/creative_check.log 2>&1
+0 12 * * * flock -xn /tmp/creative_check.lock node /opt/douyin-fetcher/creative_check.js >> /tmp/creative_check.log 2>&1
 
-# 每小时 :30 Route B + extract + node 脚本二次清洗 [v1.5]
-30 8-23,0,1 * * * cd /opt/douyin-fetcher && flock -xn /tmp/route_b_pull.lock node route_b_pull.js >> /tmp/route_b_pull.log 2>&1 && node extract_screen_summary.js >> /tmp/route_b_pull.log 2>&1 && (node clean_live_data.js || echo "[CLEAN FAIL] $(TZ=Asia/Shanghai date)") >> /tmp/route_b_pull.log 2>&1
+# Route B：每小时 :30，首轮 19:30，末轮次日 11:30。
+30 19-23,0-11 * * * cd /opt/douyin-fetcher && flock -xn /tmp/route_b_pull.lock node route_b_pull.js >> /tmp/route_b_pull.log 2>&1 && node extract_screen_summary.js >> /tmp/route_b_pull.log 2>&1 && (node clean_live_data.js || echo "[CLEAN FAIL] $(TZ=Asia/Shanghai date)" >> /tmp/route_b_pull.log 2>&1) && sleep 10 && node hourly_report.js >> /tmp/hourly_report.log 2>&1
+
+# 乘方：首轮 19:55，之后每小时 :45，避开大屏截图。
+55 19 * * * cd /opt/douyin-fetcher && flock -xn /tmp/promover.lock node promover_capture.js >> /tmp/promover_cron.log 2>&1 && node extract_promover_summary.js >> /tmp/promover_cron.log 2>&1
+45 20-23,0-11 * * * cd /opt/douyin-fetcher && flock -xn /tmp/promover.lock node promover_capture.js >> /tmp/promover_cron.log 2>&1 && node extract_promover_summary.js >> /tmp/promover_cron.log 2>&1
+
+# 杭州表：大屏截图完成后再写，首轮 19:58，后续 :28。
+58 19 * * * cd /opt/douyin-fetcher && flock -xn /tmp/autofill.lock node auto_fill_hangzhou_sheet.js >> /tmp/autofill.log 2>&1
+28 20-23,0-11 * * * cd /opt/douyin-fetcher && flock -xn /tmp/autofill.lock node auto_fill_hangzhou_sheet.js >> /tmp/autofill.log 2>&1
 ```
 
 ---
@@ -167,10 +194,10 @@
 
 | 时刻 | 事件 | live_clean.json 字段数 |
 |---|---|---|
-| :00 | live_capture_v3 + screen_capture 并行启动 | — |
-| :00+~90s | v3 完成 → webhook① 触发 | ~41（无 screen/qc） |
-| :00+~120s | screen_capture 完成 → extract_summary | — |
-| :30 | route_b_pull → extract → webhook② | **78（完整）** |
+| 19:30 / 每小时 :00 | `live_capture_v3` → `clean_live_data` | 主罗盘基础字段 |
+| 19:45 / 每小时 :15 | `screen_capture` → `extract_screen_summary` → 飞书三图 | 大屏 / 千川截图与字段 |
+| 每小时 :28 | `auto_fill_hangzhou_sheet` | 真实截图存在后才写杭州表 |
+| 每小时 :30 | `route_b_pull` → extract → 二次清洗 → 小时报告 | **完整字段** |
 
 ---
 

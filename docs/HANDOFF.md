@@ -33,6 +33,7 @@
 | 乘方素材 | 🔴 阻塞 | `fxg_storage_state.json` 登录态失效，反复跳转到 fxg/千川登录页。 |
 | 素材告警 | 🔴 阻塞 | `creative_check.js` 持续返回 HTTP 403。 |
 | 服务器文档 | ⚠️ 已废弃 | `/opt/douyin-fetcher/docs` 只剩历史 `.bak`；`/root/luopan_agent_progress.md` 已过期，不能再作为运行依据。 |
+| 直播排程 | ✅ 已调整 | 北京时间每天 19:30 至次日 12:00；主罗盘与大屏截图错开 15 分钟，详见 `WORKFLOW.md` v1.7。 |
 
 ### 恢复顺序（未执行）
 

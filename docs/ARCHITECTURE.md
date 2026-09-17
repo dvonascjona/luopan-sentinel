@@ -137,6 +137,8 @@
 
 ## 三、双层采集架构
 
+所有直播相关 cron 先经过 `live_gate_exec.js`：实时接口明确下播时静默跳过整条任务链，不抓取、不清洗、不生成报告、不发群消息；接口异常 fail-fast；下一周期重新检测，开播后自动恢复。
+
 ### Layer 1：每小时深度采集（Playwright，~2分钟）
 - `live_capture_v3.js`：百应罗盘 → 39 字段归档 JSON
 - `screen_capture.js`：直播大屏 + 千川看板 → 172 Screen API + 46 千川 API

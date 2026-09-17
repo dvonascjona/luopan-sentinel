@@ -1,7 +1,17 @@
 <!-- TAG: 规则文档 | 用途: 罗盘哨兵运维SOP与执行流程 | 生成: 2026-05-10 -->
 # 罗盘哨兵 — 工作流（WORKFLOW.md）
 
-> 版本：v1.10 | 更新：2026-09-17
+> 版本：v1.11 | 更新：2026-09-18
+
+**v1.11变更** · 2026-09-18 · dv × Codex
+
+变更内容：
+- [新增] `live_gate_exec.js` 在每轮 cron 前实时查询 `today_live_room`。
+- [修改] 明确未直播时输出 `[SKIP_NOT_LIVE]` 并跳过整条采集链，不启动浏览器、不清洗、不生成报告、不发群消息。
+- [修改] 正在直播时输出 `[LIVE]` 并执行原任务；下个 cron 周期再次判断，开播后自动恢复。
+- [Fail Fast] HTTP、Cookie、JSON、接口结构异常均 `exit 1`，禁止伪装成未直播。
+
+验收：真实直播时门控必须执行测试命令；离线响应必须跳过；异常响应必须失败。生产 cron 中所有直播采集入口必须经过门控。
 
 **v1.10变更** · 2026-09-17 · dv × Codex
 
@@ -191,29 +201,29 @@
 ```bash
 # 北京时间每天 19:30 开播，次日 12:00 下播；主罗盘与大屏浏览器任务必须错开 15 分钟。
 # 主罗盘归档 → node 清洗：首轮 19:30，之后整点至次日 12:00。
-30 19 * * * cd /opt/douyin-fetcher && (node live_capture_v3.js || (echo "[RETRY] 5min后重试" >> /tmp/luopan_cron.log && sleep 300 && node live_capture_v3.js)) >> /tmp/luopan_cron.log 2>&1 && sleep 30 && (node clean_live_data.js || echo "[CLEAN FAIL] $(TZ=Asia/Shanghai date)" >> /tmp/luopan_cron.log)
-0 20-23,0-12 * * * cd /opt/douyin-fetcher && (node live_capture_v3.js || (echo "[RETRY] 5min后重试" >> /tmp/luopan_cron.log && sleep 300 && node live_capture_v3.js)) >> /tmp/luopan_cron.log 2>&1 && sleep 30 && (node clean_live_data.js || echo "[CLEAN FAIL] $(TZ=Asia/Shanghai date)" >> /tmp/luopan_cron.log)
+30 19 * * * cd /opt/douyin-fetcher && node live_gate_exec.js -- bash -lc '(node live_capture_v3.js || (echo "[RETRY] 5min后重试" && sleep 300 && node live_capture_v3.js)) && sleep 30 && node clean_live_data.js' >> /tmp/luopan_cron.log 2>&1
+0 20-23,0-12 * * * cd /opt/douyin-fetcher && node live_gate_exec.js -- bash -lc '(node live_capture_v3.js || (echo "[RETRY] 5min后重试" && sleep 300 && node live_capture_v3.js)) && sleep 30 && node clean_live_data.js' >> /tmp/luopan_cron.log 2>&1
 
 # 大屏截图：首轮 19:45，之后 :15 至次日 11:15；完成后自动发图到飞书群。
-45 19 * * * cd /opt/douyin-fetcher && (node screen_capture.js || (echo "[SCREEN RETRY]" >> /tmp/screen_cron.log && sleep 300 && node screen_capture.js --retry)) >> /tmp/screen_cron.log 2>&1 && node extract_screen_summary.js >> /tmp/screen_cron.log 2>&1
-15 20-23,0-11 * * * cd /opt/douyin-fetcher && (node screen_capture.js || (echo "[SCREEN RETRY]" >> /tmp/screen_cron.log && sleep 300 && node screen_capture.js --retry)) >> /tmp/screen_cron.log 2>&1 && node extract_screen_summary.js >> /tmp/screen_cron.log 2>&1
+45 19 * * * cd /opt/douyin-fetcher && node live_gate_exec.js -- bash -lc '(node screen_capture.js || (echo "[SCREEN RETRY]" && sleep 300 && node screen_capture.js --retry)) && node extract_screen_summary.js' >> /tmp/screen_cron.log 2>&1
+15 20-23,0-11 * * * cd /opt/douyin-fetcher && node live_gate_exec.js -- bash -lc '(node screen_capture.js || (echo "[SCREEN RETRY]" && sleep 300 && node screen_capture.js --retry)) && node extract_screen_summary.js' >> /tmp/screen_cron.log 2>&1
 
 # 快检：首轮 19:35，之后每 5 分钟至次日 12:00。
-35-59/5 19 * * * /bin/bash -c "sleep $((RANDOM / 547)) && flock -xn /tmp/quick_check.lock node /opt/douyin-fetcher/quick_check.js" >> /tmp/quick_check.log 2>&1
-*/5 20-23,0-11 * * * /bin/bash -c "sleep $((RANDOM / 547)) && flock -xn /tmp/quick_check.lock node /opt/douyin-fetcher/quick_check.js" >> /tmp/quick_check.log 2>&1
-0 12 * * * /bin/bash -c "sleep $((RANDOM / 547)) && flock -xn /tmp/quick_check.lock node /opt/douyin-fetcher/quick_check.js" >> /tmp/quick_check.log 2>&1
+35-59/5 19 * * * /bin/bash -c "sleep $((RANDOM / 547)) && cd /opt/douyin-fetcher && node live_gate_exec.js -- flock -xn /tmp/quick_check.lock node quick_check.js" >> /tmp/quick_check.log 2>&1
+*/5 20-23,0-11 * * * /bin/bash -c "sleep $((RANDOM / 547)) && cd /opt/douyin-fetcher && node live_gate_exec.js -- flock -xn /tmp/quick_check.lock node quick_check.js" >> /tmp/quick_check.log 2>&1
+0 12 * * * /bin/bash -c "sleep $((RANDOM / 547)) && cd /opt/douyin-fetcher && node live_gate_exec.js -- flock -xn /tmp/quick_check.lock node quick_check.js" >> /tmp/quick_check.log 2>&1
 
 # 素材告警：首轮 19:45，之后每 15 分钟至次日 12:00。
-45 19 * * * flock -xn /tmp/creative_check.lock node /opt/douyin-fetcher/creative_check.js >> /tmp/creative_check.log 2>&1
-*/15 20-23,0-11 * * * flock -xn /tmp/creative_check.lock node /opt/douyin-fetcher/creative_check.js >> /tmp/creative_check.log 2>&1
-0 12 * * * flock -xn /tmp/creative_check.lock node /opt/douyin-fetcher/creative_check.js >> /tmp/creative_check.log 2>&1
+45 19 * * * cd /opt/douyin-fetcher && node live_gate_exec.js -- flock -xn /tmp/creative_check.lock node creative_check.js >> /tmp/creative_check.log 2>&1
+*/15 20-23,0-11 * * * cd /opt/douyin-fetcher && node live_gate_exec.js -- flock -xn /tmp/creative_check.lock node creative_check.js >> /tmp/creative_check.log 2>&1
+0 12 * * * cd /opt/douyin-fetcher && node live_gate_exec.js -- flock -xn /tmp/creative_check.lock node creative_check.js >> /tmp/creative_check.log 2>&1
 
 # Route B：每小时 :30，首轮 19:30，末轮次日 11:30。
-30 19-23,0-11 * * * cd /opt/douyin-fetcher && flock -xn /tmp/route_b_pull.lock node route_b_pull.js >> /tmp/route_b_pull.log 2>&1 && node extract_screen_summary.js >> /tmp/route_b_pull.log 2>&1 && (node clean_live_data.js || echo "[CLEAN FAIL] $(TZ=Asia/Shanghai date)" >> /tmp/route_b_pull.log 2>&1) && sleep 10 && node hourly_report.js >> /tmp/hourly_report.log 2>&1
+30 19-23,0-11 * * * cd /opt/douyin-fetcher && node live_gate_exec.js -- bash -lc 'flock -xn /tmp/route_b_pull.lock node route_b_pull.js && node extract_screen_summary.js && node clean_live_data.js && sleep 10 && node hourly_report.js' >> /tmp/route_b_pull.log 2>&1
 
 # 乘方：首轮 19:55，之后每小时 :45，避开大屏截图。
-55 19 * * * cd /opt/douyin-fetcher && flock -xn /tmp/promover.lock node promover_capture.js >> /tmp/promover_cron.log 2>&1 && node extract_promover_summary.js >> /tmp/promover_cron.log 2>&1
-45 20-23,0-11 * * * cd /opt/douyin-fetcher && flock -xn /tmp/promover.lock node promover_capture.js >> /tmp/promover_cron.log 2>&1 && node extract_promover_summary.js >> /tmp/promover_cron.log 2>&1
+55 19 * * * cd /opt/douyin-fetcher && node live_gate_exec.js -- bash -lc 'flock -xn /tmp/promover.lock node promover_capture.js && node extract_promover_summary.js' >> /tmp/promover_cron.log 2>&1
+45 20-23,0-11 * * * cd /opt/douyin-fetcher && node live_gate_exec.js -- bash -lc 'flock -xn /tmp/promover.lock node promover_capture.js && node extract_promover_summary.js' >> /tmp/promover_cron.log 2>&1
 
 # ASK JUNIOR 表：大屏截图完成后再写，首轮 19:58，后续 :28。
 58 19 * * * cd /opt/douyin-fetcher && flock -xn /tmp/autofill.lock node auto_fill_ask_junior_sheet.js >> /tmp/autofill.log 2>&1

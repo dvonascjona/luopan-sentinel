@@ -5,6 +5,8 @@
 
 > 2026-09-17 补充：5 分钟 cron 的 `%` 截断问题已修复；快照存储升级为 `data/snapshots/YYYY-MM-DD/HH-MM.json`，`quick_check.js` 在线趋势与 `hourly_report.js` 均只读取目标日期目录。
 
+> 2026-09-18 补充：全部直播采集 cron 统一接入 `live_gate_exec.js`。实时接口明确下播后静默停止抓取和群消息，下个周期重新检测，开播自动恢复；接口异常不允许伪装成下播。
+
 ---
 
 ## 一、快速定位

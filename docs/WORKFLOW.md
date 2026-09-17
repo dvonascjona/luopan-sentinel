@@ -12,6 +12,7 @@
 - [修改] 乘方首轮移到 `19:55`，后续 `:45`，避开大屏截图窗口。
 - [修改] 飞书群仅发送直播大屏专业版、基础版；千川截图仍本地归档，不发群。
 - [修复] 自动填表的旧 `sheets +read/+write/+write-image` 全部迁移到 `+cells-get/+cells-set/+cells-set-image`，兼容 `lark-cli 1.0.96`。
+- [新增] ASK JUNIOR 表使用 `auto_fill_ask_junior_sheet.js`，仅填写 B–L 数值指标；图片不入表。
 
 解决的问题：
 - 不在白天无直播时空跑采集与告警。

@@ -38,7 +38,7 @@ function die(reason) {
   process.exit(1);
 }
 
-// 运行 lark-cli 并解析 JSON（兼容 +write-image 前缀的 "Writing image:" 行）
+// 运行 lark-cli 并解析 JSON。所有自动写入固定 bot 身份，避免默认身份随人工 OAuth 登录变化。
 function larkJSON(cmd) {
   let out;
   try {
@@ -122,14 +122,16 @@ const candDates = [capDateNum];
 if (captureHour <= 1) candDates.push(yestNum);   // 仅凌晨才纳入前一天（24:00 续场行）
 
 // ── 2. 读表匹配行 ──
-const rd = larkJSON('lark-cli sheets +read --url "' + SHEET_URL + '" --sheet-id "' + SHEET_ID + '" --range "A1:F400"');
+const rd = larkJSON('lark-cli sheets +cells-get --url "' + SHEET_URL + '" --sheet-id "' + SHEET_ID +
+  '" --range "A1:F400" --include value --as bot');
 if (!rd.ok) die('读表失败: ' + JSON.stringify(rd.error || rd).substring(0, 120));
-const rows = rd.data.valueRange.values || [];
+const rows = (((rd.data || {}).ranges || [])[0] || {}).cells || [];
+const values = rows.map(row => row.map(cell => cell && cell.value != null ? cell.value : ''));
 
 const hits = [];
-for (let i = 1; i < rows.length; i++) {            // 跳过表头第1行
-  const a = parseFloat(rows[i][0]);                // A 日期
-  const eh = endHour(rows[i][4]);                  // E 下播 → 整点
+for (let i = 1; i < values.length; i++) {          // 跳过表头第1行
+  const a = parseFloat(values[i][0]);              // A 日期
+  const eh = endHour(values[i][4]);                // E 下播 → 整点
   if (isNaN(a) || eh == null) continue;
   if (eh !== captureHour) continue;
   if (candDates.some(cd => Math.abs(a - cd) < 0.001)) hits.push(i + 1);  // 1-based 行号
@@ -141,15 +143,16 @@ const r = hits[0];
 
 // ── 3. 写入 ──
 function writeVals(range, vals) {
-  const res = larkJSON('lark-cli sheets +write --url "' + SHEET_URL + '" --sheet-id "' + SHEET_ID +
-    '" --range "' + range + '" --values ' + "'" + JSON.stringify(vals) + "'");
+  const cells = vals.map(row => row.map(value => ({ value })));
+  const res = larkJSON('lark-cli sheets +cells-set --url "' + SHEET_URL + '" --sheet-id "' + SHEET_ID +
+    '" --range "' + range + '" --cells ' + "'" + JSON.stringify(cells) + "' --as bot");
   if (!res.ok) die('写入 ' + range + ' 失败: ' + JSON.stringify(res.error || res).substring(0, 120));
 }
 function writeImg(cell, path, name) {
   process.chdir('/tmp');
   const base = require('path').basename(path);
-  const res = larkJSON('lark-cli sheets +write-image --url "' + SHEET_URL + '" --sheet-id "' + SHEET_ID +
-    '" --range "' + cell + '" --image "./' + base + '" --name "' + name + '"');
+  const res = larkJSON('lark-cli sheets +cells-set-image --url "' + SHEET_URL + '" --sheet-id "' + SHEET_ID +
+    '" --range "' + cell + '" --image "./' + base + '" --as bot');
   if (!res.ok) die('贴图 ' + cell + ' 失败: ' + JSON.stringify(res.error || res).substring(0, 120));
 }
 
@@ -161,8 +164,9 @@ writeImg('R' + r, IMG.R, '中控台基础版_' + dh + '.png');
 writeImg('S' + r, IMG.S, '千川_' + dh + '.png');
 
 // ── 4. 回读核对 ──
-const chk = larkJSON('lark-cli sheets +read --url "' + SHEET_URL + '" --sheet-id "' + SHEET_ID + '" --range "K' + r + ':M' + r + '"');
-const got = (chk.data && chk.data.valueRange.values && chk.data.valueRange.values[0]) || [];
+const chk = larkJSON('lark-cli sheets +cells-get --url "' + SHEET_URL + '" --sheet-id "' + SHEET_ID +
+  '" --range "K' + r + ':M' + r + '" --include value --as bot');
+const got = ((((chk.data || {}).ranges || [])[0] || {}).cells || [[]])[0].map(cell => cell && cell.value != null ? cell.value : '');
 console.log('[OK] ' + dh + ' → 第' + r + '行 | 整体成交' + K + ' 整体消耗' + L + ' 直播间成交' + M +
             ' 最高在线' + N + ' 平均在线' + O + ' 件单价' + P + '(' + pSrc + ') | 三图已贴');
 console.log('[VERIFY] 回读 K/L/M =', got.join(' / '));

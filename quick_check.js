@@ -92,7 +92,11 @@ function coreVal(coreData, name) {
 async function main() {
   const now = new Date();
   const bjt = new Date(now.getTime() + 8 * 3600 * 1000);
-  const label = bjt.toISOString().replace('T', ' ').substring(0, 16) + ' BJT';
+  const bjIso = bjt.toISOString();
+  const bjDate = bjIso.substring(0, 10);
+  const hhmm = bjIso.substring(11, 16).replace(':', '-');
+  const todaySnapDir = `/opt/douyin-fetcher/data/snapshots/${bjDate}`;
+  const label = bjIso.replace('T', ' ').substring(0, 16) + ' BJT';
   console.log(`\n[QUICK] ${label}`);
 
   const cookie = loadCookies();
@@ -198,6 +202,15 @@ async function main() {
       gmv: cumGMV, watch: cumWatch, orders: cumOrders,
       no_order_periods: 0,
     }, null, 2));
+    fs.mkdirSync(todaySnapDir, { recursive: true });
+    fs.writeFileSync(`${todaySnapDir}/${hhmm}.json`, JSON.stringify({
+      ts: now.toISOString(), bjTime: hhmm.replace('-', ':'),
+      live_id: roomId,
+      d_gmv: 0, d_watch: 0, d_orders: 0, d_fans: 0,
+      gpm, online_cnt: onlineCnt, conv_rate: convRate,
+      enter_5min: enter5, flow_change: flowChange, gmv_change: gmvChange,
+      baseline: true,
+    }, null, 2));
     console.log('[QUICK] 首次运行，快照已保存');
     return;
   }
@@ -234,13 +247,12 @@ async function main() {
     richSignals.push(`❌ 连续 ${noOrderPeriods} 期（${noOrderPeriods * 5}min）无出单`);
 
   // ── 近N期在线迷你趋势图 ──────────────────────────────────────────────────
-  const SNAP_DIR_QC = '/opt/douyin-fetcher/data/snapshots';
   let recentOnlines = [];
-  if (fs.existsSync(SNAP_DIR_QC)) {
+  if (fs.existsSync(todaySnapDir)) {
     try {
-      const files = fs.readdirSync(SNAP_DIR_QC).filter(f => f.endsWith('.json')).sort();
+      const files = fs.readdirSync(todaySnapDir).filter(f => f.endsWith('.json')).sort();
       for (const f of files.slice(-6)) {
-        const s = JSON.parse(fs.readFileSync(SNAP_DIR_QC + '/' + f, 'utf8'));
+        const s = JSON.parse(fs.readFileSync(todaySnapDir + '/' + f, 'utf8'));
         if (s.online_cnt != null) recentOnlines.push(s.online_cnt);
       }
     } catch(e) { /* ignore */ }
@@ -298,11 +310,8 @@ async function main() {
   }, null, 2));
 
   // 带时间戳快照，供小时报告读取趋势序列
-  const bjSnap = new Date(Date.now() + 8 * 3600 * 1000);
-  const hhmm   = bjSnap.toISOString().substring(11, 16).replace(':', '-');
-  const snapDir = '/opt/douyin-fetcher/data/snapshots';
-  if (!fs.existsSync(snapDir)) fs.mkdirSync(snapDir, { recursive: true });
-  fs.writeFileSync(`${snapDir}/${hhmm}.json`, JSON.stringify({
+  fs.mkdirSync(todaySnapDir, { recursive: true });
+  fs.writeFileSync(`${todaySnapDir}/${hhmm}.json`, JSON.stringify({
     ts: now.toISOString(), bjTime: hhmm.replace('-', ':'),
     live_id: roomId,
     d_gmv: dGMV, d_watch: dWatch, d_orders: dOrders, d_fans: dFans,

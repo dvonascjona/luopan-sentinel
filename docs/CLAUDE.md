@@ -100,7 +100,7 @@
 |---|---|---|
 | 归档 JSON | `YYYY-MM-DD_HH.json` | `2026-05-10_17.json` |
 | 大屏归档 | `screen_YYYY-MM-DD_HH.json` | `screen_2026-05-10_17.json` |
-| 快照 | `data/snapshots/HH-MM.json`（北京时间） | `17-05.json` |
+| 快照 | `data/snapshots/YYYY-MM-DD/HH-MM.json`（北京时间） | `2026-09-17/21-30.json` |
 | 备份 | `*.bak.YYYYMMDDHHmm` | `live_capture_v3.js.bak.202605090144` |
 
 ---

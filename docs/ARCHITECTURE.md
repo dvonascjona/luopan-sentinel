@@ -51,7 +51,7 @@
 | Gap | 影响 | 优先级 |
 |---|---|---|
 | 飞书每小时表写入未实现 | 数据只在服务器，无法历史查询 | **P0** |
-| quick_check 只告警不存档 | 5分钟粒度数据无法留存供AI分析 | P1 |
+| quick_check 快照按日期隔离 | 已落地 `snapshots/YYYY-MM-DD/HH-MM.json`，避免跨日覆盖与混读 | ✅ |
 | promover_capture 每小时一次 | 素材起量窗口可能错过 | P2（当前实际可接受） |
 | AI 场次总结未实现 | 无自动复盘 | P3 |
 
@@ -230,7 +230,7 @@
 | `data/screen_summary.json` | 大屏精简摘要（1.1KB） |
 | `data/route_b_clean.json` | Route B 千川数据 |
 | `data/snapshot_latest.json` | 最新快照 |
-| `data/snapshots/HH-MM.json` | 5 分钟时间戳快照序列 |
+| `data/snapshots/YYYY-MM-DD/HH-MM.json` | 按北京时间日期隔离的 5 分钟快照序列 |
 | `data/creative_status.json` | 素材追投状态持久化 |
 | `full_storage_state.json` | Playwright session（~500KB） |
 | `fresh_cookies.json` | Cookie 文件 |

@@ -1,7 +1,17 @@
 <!-- TAG: 规则文档 | 用途: 罗盘哨兵运维SOP与执行流程 | 生成: 2026-05-10 -->
 # 罗盘哨兵 — 工作流（WORKFLOW.md）
 
-> 版本：v1.8 | 更新：2026-09-17
+> 版本：v1.9 | 更新：2026-09-17
+
+**v1.9变更** · 2026-09-17 · dv × Codex
+
+变更内容：
+- [修复] 5 分钟 cron 避开 cron 会截断的 `%` 字符，改用 `RANDOM / 547` 生成 0–59 秒随机延迟。
+- [修改] 5 分钟快照改存 `data/snapshots/YYYY-MM-DD/HH-MM.json`，避免每日同名文件互相覆盖。
+- [修改] 在线趋势与小时报告只读取目标北京时间日期目录，禁止跨日混读。
+- [修复] 当天首次运行也写入带 `baseline=true` 的时间快照，不再只更新 `snapshot_latest.json`。
+
+验收：真实执行 `quick_check.js` 后，当天日期目录必须产生新 JSON；`hourly_report.js --dry-run` 必须只预览、不发飞书。
 
 **v1.8变更** · 2026-09-17 · dv × Codex
 
@@ -180,9 +190,9 @@
 15 20-23,0-11 * * * cd /opt/douyin-fetcher && (node screen_capture.js || (echo "[SCREEN RETRY]" >> /tmp/screen_cron.log && sleep 300 && node screen_capture.js --retry)) >> /tmp/screen_cron.log 2>&1 && node extract_screen_summary.js >> /tmp/screen_cron.log 2>&1
 
 # 快检：首轮 19:35，之后每 5 分钟至次日 12:00。
-35-59/5 19 * * * /bin/bash -c "sleep $((RANDOM % 60)) && flock -xn /tmp/quick_check.lock node /opt/douyin-fetcher/quick_check.js" >> /tmp/quick_check.log 2>&1
-*/5 20-23,0-11 * * * /bin/bash -c "sleep $((RANDOM % 60)) && flock -xn /tmp/quick_check.lock node /opt/douyin-fetcher/quick_check.js" >> /tmp/quick_check.log 2>&1
-0 12 * * * /bin/bash -c "sleep $((RANDOM % 60)) && flock -xn /tmp/quick_check.lock node /opt/douyin-fetcher/quick_check.js" >> /tmp/quick_check.log 2>&1
+35-59/5 19 * * * /bin/bash -c "sleep $((RANDOM / 547)) && flock -xn /tmp/quick_check.lock node /opt/douyin-fetcher/quick_check.js" >> /tmp/quick_check.log 2>&1
+*/5 20-23,0-11 * * * /bin/bash -c "sleep $((RANDOM / 547)) && flock -xn /tmp/quick_check.lock node /opt/douyin-fetcher/quick_check.js" >> /tmp/quick_check.log 2>&1
+0 12 * * * /bin/bash -c "sleep $((RANDOM / 547)) && flock -xn /tmp/quick_check.lock node /opt/douyin-fetcher/quick_check.js" >> /tmp/quick_check.log 2>&1
 
 # 素材告警：首轮 19:45，之后每 15 分钟至次日 12:00。
 45 19 * * * flock -xn /tmp/creative_check.lock node /opt/douyin-fetcher/creative_check.js >> /tmp/creative_check.log 2>&1

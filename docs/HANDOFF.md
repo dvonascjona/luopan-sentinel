@@ -3,6 +3,8 @@
 
 > 更新：2026-09-17（ASK JUNIOR 自动填表已修复并回填） | 本文件是入口，详细规则看同目录其他文档
 
+> 2026-09-17 补充：5 分钟 cron 的 `%` 截断问题已修复；快照存储升级为 `data/snapshots/YYYY-MM-DD/HH-MM.json`，`quick_check.js` 在线趋势与 `hourly_report.js` 均只读取目标日期目录。
+
 ---
 
 ## 一、快速定位

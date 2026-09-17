@@ -9,9 +9,10 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const CLEAN_FILE   = '/opt/douyin-fetcher/data/live_clean.json';
-const SNAP_DIR     = '/opt/douyin-fetcher/data/snapshots';
+const SNAP_ROOT    = '/opt/douyin-fetcher/data/snapshots';
 const SNAP_LATEST  = '/opt/douyin-fetcher/data/snapshot_latest.json';
 const CHAT_ID      = require('./feishu_config.cjs').CHAT_ID;
+const DRY_RUN      = process.argv.includes('--dry-run');
 
 // ── 工具函数 ──────────────────────────────────────────────────────────────
 function n(v, digits = 0) {
@@ -39,6 +40,10 @@ function flag(v, badDir = 'down', warnThr = 0.2, goodThr = null) {
   return '';
 }
 function larkSend(msg) {
+  if (DRY_RUN) {
+    console.log('[DRY RUN] 未发送飞书消息');
+    return;
+  }
   const safe = msg.replace(/"/g, "'");
   execSync(`lark-cli im +messages-send --chat-id ${CHAT_ID} --text "${safe}" --as bot`,
     { encoding: 'utf8', timeout: 15000, stdio: 'pipe' });
@@ -100,15 +105,17 @@ function main() {
   const cpm          = expose  > 0 ? totalAdCost / expose * 1000 : null;
 
   // ── 读5分钟快照序列 ─────────────────────────────────────────────────────
+  const snapshotDate = bjHour.substring(0, 10);
+  const snapDir = path.join(SNAP_ROOT, snapshotDate);
   const hourPrefix = bjHour.substring(11, 13); // "14" from "2026-05-09_14"
   let snapshots = [];
 
-  if (fs.existsSync(SNAP_DIR)) {
-    const files = fs.readdirSync(SNAP_DIR)
+  if (fs.existsSync(snapDir)) {
+    const files = fs.readdirSync(snapDir)
       .filter(f => f.endsWith('.json') && f.startsWith(hourPrefix + '-'))
       .sort();
     snapshots = files.map(f => {
-      try { return JSON.parse(fs.readFileSync(path.join(SNAP_DIR, f), 'utf8')); }
+      try { return JSON.parse(fs.readFileSync(path.join(snapDir, f), 'utf8')); }
       catch(e) { return null; }
     }).filter(Boolean);
   }

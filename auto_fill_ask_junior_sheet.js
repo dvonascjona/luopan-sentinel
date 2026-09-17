@@ -13,7 +13,9 @@ if (!hour) fail('日期小时缺失');
 // 快照小时直接写同名整点行。例：20 点快照 → 表内 20:00。
 // 简化: 目前 cron 每小时只产出一个完整快照；若改为半小时采集，再改成
 // 从采集时间直接计算 00/30 槽位。
-const time = String(+hour[1]).padStart(2, '0') + ':00';
+const defaultTime = String(+hour[1]).padStart(2, '0') + ':00';
+const time = process.env.ASK_TARGET_TIME || defaultTime;
+if (!/^([01]\d|2[0-3]):(?:00|30)$/.test(time)) fail(`ASK_TARGET_TIME 无效: ${time}`);
 const gmv = d.screen_GMV == null ? null : Math.round(d.screen_GMV) / 100;
 const cost = d.qc_overall_cost;
 const watch = d.screen_watch_ucnt;

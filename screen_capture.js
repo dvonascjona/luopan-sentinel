@@ -905,13 +905,12 @@ async function main() {
     : '⚠️ [大屏+千川] 本次抓取异常：未命中任何 API（screen=' + screenAPIs.length + ' qc=' + qcAPIs.length + ')';
   larkSend(msg);
 
-  // ── 发飞书截图（专业版 + 基础版 + 千川）──
+  // ── 发飞书截图（仅直播大屏；千川截图保留本地归档，不发群）──
   try {
     const bjTimeStr = new Date(Date.now() + 8*3600*1000).toISOString().substring(0,16).replace('T',' ');
     const shots = [
       { path: '/tmp/sc_pro.png',   label: '📊 直播大屏 专业版' },
       { path: '/tmp/sc_basic.png', label: '📺 直播大屏 基础版' },
-      { path: '/tmp/sc_qc.png',    label: '💰 巨量千川' },
     ];
     const blankMap = { '/tmp/sc_pro.png': proBlank, '/tmp/sc_basic.png': basicBlank };
     const blanked = shots.filter(s => blankMap[s.path]);

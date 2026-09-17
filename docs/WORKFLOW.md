@@ -1,7 +1,17 @@
 <!-- TAG: 规则文档 | 用途: 罗盘哨兵运维SOP与执行流程 | 生成: 2026-05-10 -->
 # 罗盘哨兵 — 工作流（WORKFLOW.md）
 
-> 版本：v1.7 | 更新：2026-09-17
+> 版本：v1.8 | 更新：2026-09-17
+
+**v1.8变更** · 2026-09-17 · dv × Codex
+
+变更内容：
+- [修改] ASK JUNIOR 自动填表不再以 `是否在播=0` 拦截；按 dv 的确认，现有快照可直接写入，允许存在合理时间误差。
+- [修复] 罗盘 `日期小时` 与 ASK 表的同名整点行对齐（如 `20` → `20:00`），避免写入尚未到时的未来行。
+
+验收：对当前 `2026-09-17_20` 快照执行后，`20:00` 行 B:L 必须读回为非空数值。
+
+---
 
 **v1.7变更** · 2026-09-17 · dv × Codex
 
@@ -186,9 +196,9 @@
 55 19 * * * cd /opt/douyin-fetcher && flock -xn /tmp/promover.lock node promover_capture.js >> /tmp/promover_cron.log 2>&1 && node extract_promover_summary.js >> /tmp/promover_cron.log 2>&1
 45 20-23,0-11 * * * cd /opt/douyin-fetcher && flock -xn /tmp/promover.lock node promover_capture.js >> /tmp/promover_cron.log 2>&1 && node extract_promover_summary.js >> /tmp/promover_cron.log 2>&1
 
-# 杭州表：大屏截图完成后再写，首轮 19:58，后续 :28。
-58 19 * * * cd /opt/douyin-fetcher && flock -xn /tmp/autofill.lock node auto_fill_hangzhou_sheet.js >> /tmp/autofill.log 2>&1
-28 20-23,0-11 * * * cd /opt/douyin-fetcher && flock -xn /tmp/autofill.lock node auto_fill_hangzhou_sheet.js >> /tmp/autofill.log 2>&1
+# ASK JUNIOR 表：大屏截图完成后再写，首轮 19:58，后续 :28。
+58 19 * * * cd /opt/douyin-fetcher && flock -xn /tmp/autofill.lock node auto_fill_ask_junior_sheet.js >> /tmp/autofill.log 2>&1
+28 20-23,0-11 * * * cd /opt/douyin-fetcher && flock -xn /tmp/autofill.lock node auto_fill_ask_junior_sheet.js >> /tmp/autofill.log 2>&1
 ```
 
 ---
@@ -199,7 +209,7 @@
 |---|---|---|
 | 19:30 / 每小时 :00 | `live_capture_v3` → `clean_live_data` | 主罗盘基础字段 |
 | 19:45 / 每小时 :15 | `screen_capture` → `extract_screen_summary` → 飞书三图 | 大屏 / 千川截图与字段 |
-| 每小时 :28 | `auto_fill_hangzhou_sheet` | 真实截图存在后才写杭州表 |
+| 每小时 :28 | `auto_fill_ask_junior_sheet` | 允许当前快照直接写 ASK JUNIOR 表 |
 | 每小时 :30 | `route_b_pull` → extract → 二次清洗 → 小时报告 | **完整字段** |
 
 ---

@@ -10,6 +10,9 @@ function fail(s) { throw new Error('[ASK自动填表] ' + s); }
 const d = JSON.parse(fs.readFileSync(DATA, 'utf8'));
 const hour = /_(\d{1,2})$/.exec(d['日期小时'] || '');
 if (!hour) fail('日期小时缺失');
+// 快照小时直接写同名整点行。例：20 点快照 → 表内 20:00。
+// 简化: 目前 cron 每小时只产出一个完整快照；若改为半小时采集，再改成
+// 从采集时间直接计算 00/30 槽位。
 const time = String(+hour[1]).padStart(2, '0') + ':00';
 const gmv = d.screen_GMV == null ? null : Math.round(d.screen_GMV) / 100;
 const cost = d.qc_overall_cost;
@@ -37,4 +40,4 @@ const cells = [vals.map(value => ({ value: value == null ? '' : Math.round(value
 const wrote = run(`lark-cli sheets +cells-set --url "${URL}" --sheet-id ${SHEET} --range "B${row}:L${row}" --cells '${JSON.stringify(cells)}' --as bot`);
 if (!wrote.ok) fail(JSON.stringify(wrote.error || wrote));
 const check = run(`lark-cli sheets +cells-get --url "${URL}" --sheet-id ${SHEET} --range "B${row}:L${row}" --include value --as bot`);
-console.log(`[OK] ${d['日期小时']} → ${time} 第${row}行`, JSON.stringify(check.data.ranges[0].cells[0]));
+console.log(`[OK] ${d['日期小时']}（是否在播=${d['是否在播']}）→ ${time} 第${row}行`, JSON.stringify(check.data.ranges[0].cells[0]));

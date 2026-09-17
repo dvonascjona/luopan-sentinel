@@ -49,6 +49,22 @@ function larkSend(msg) {
     { encoding: 'utf8', timeout: 15000, stdio: 'pipe' });
 }
 
+function assertSnapshotDate(snapshot, file, expectedDate) {
+  if (!snapshot.ts) throw new Error(`[SNAPSHOT TIME MISSING] file=${file}`);
+  const timestamp = new Date(snapshot.ts);
+  if (Number.isNaN(timestamp.getTime())) {
+    throw new Error(`[SNAPSHOT TIME INVALID] file=${file} ts=${snapshot.ts}`);
+  }
+  const actualDate = new Date(timestamp.getTime() + 8 * 3600 * 1000)
+    .toISOString().substring(0, 10);
+  if (actualDate !== expectedDate) {
+    throw new Error(
+      `[SNAPSHOT DATE MISMATCH] file=${file} ts=${snapshot.ts} ` +
+      `expected=${expectedDate} actual=${actualDate}`
+    );
+  }
+}
+
 // ── 主逻辑 ────────────────────────────────────────────────────────────────
 function main() {
   // 1. 读全量数据
@@ -115,17 +131,17 @@ function main() {
       .filter(f => f.endsWith('.json') && f.startsWith(hourPrefix + '-'))
       .sort();
     snapshots = files.map(f => {
-      try { return JSON.parse(fs.readFileSync(path.join(snapDir, f), 'utf8')); }
-      catch(e) { return null; }
-    }).filter(Boolean);
+      const snapshot = JSON.parse(fs.readFileSync(path.join(snapDir, f), 'utf8'));
+      assertSnapshotDate(snapshot, f, snapshotDate);
+      return snapshot;
+    });
   }
 
   // 如果 snapshots 为空但有 snapshot_latest.json，用它作单点
   if (snapshots.length === 0 && fs.existsSync(SNAP_LATEST)) {
-    try {
-      const s = JSON.parse(fs.readFileSync(SNAP_LATEST, 'utf8'));
-      snapshots = [s]; // 单点快照，显示最新状态
-    } catch(e) {}
+    const s = JSON.parse(fs.readFileSync(SNAP_LATEST, 'utf8'));
+    assertSnapshotDate(s, path.basename(SNAP_LATEST), snapshotDate);
+    snapshots = [s]; // 单点快照，显示最新状态
   }
 
   // ── 计算增量序列 ─────────────────────────────────────────────────────────
@@ -241,4 +257,12 @@ function main() {
   console.log('[DONE] 小时报告已发送');
 }
 
-main();
+try {
+  main();
+} catch (e) {
+  const errorMessage = `[FATAL] 小时报告失败: ${e.message}`;
+  console.error(errorMessage);
+  try { larkSend(`❌ ${errorMessage}`); }
+  catch (sendError) { console.error(`[ALERT FAIL] ${sendError.message}`); }
+  process.exit(1);
+}

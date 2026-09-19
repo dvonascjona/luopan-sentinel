@@ -1,7 +1,17 @@
 <!-- TAG: 规则文档 | 用途: 罗盘哨兵运维SOP与执行流程 | 生成: 2026-05-10 -->
 # 罗盘哨兵 — 工作流（WORKFLOW.md）
 
-> 版本：v1.11 | 更新：2026-09-18
+> 版本：v1.12 | 更新：2026-09-19
+
+**v1.12变更** · 2026-09-19 · dv × Codex
+
+变更内容：
+- [修改] 大屏截图从 `:15` 移到整点 `:00`，与主罗盘 `live_capture_v3.js` 两个 CloakBrowser 并发启动。
+- [保留] 小时报告继续在半点 `:30` 启动；截图按真实完成时间发送，通常为整点后 1–3 分钟。
+- [新增] 整点前 `:58` 运行 `prepare_capture_memory.sh`：同步磁盘、回收可再生成文件缓存、压实内存，并记录 `MemAvailable`/Swap 前后数字。
+- [Fail Fast] 整理后可用内存低于 1 GiB 时脚本退出 1，日志显示真实阈值；不通过停止其他业务服务伪造内存充足。
+
+验收：`/tmp/capture_memory.log` 出现 `[MEMORY_PREP]` 且 `available_kb>=1048576`；整点进程采样应同时出现 `live_capture_v3.js` 与 `screen_capture.js`；飞书截图标题时间为整点后的真实完成时间。
 
 **v1.11变更** · 2026-09-18 · dv × Codex
 
@@ -204,9 +214,11 @@
 30 19 * * * cd /opt/douyin-fetcher && node live_gate_exec.js -- bash -lc '(node live_capture_v3.js || (echo "[RETRY] 5min后重试" && sleep 300 && node live_capture_v3.js)) && sleep 30 && node clean_live_data.js' >> /tmp/luopan_cron.log 2>&1
 0 20-23,0-12 * * * cd /opt/douyin-fetcher && node live_gate_exec.js -- bash -lc '(node live_capture_v3.js || (echo "[RETRY] 5min后重试" && sleep 300 && node live_capture_v3.js)) && sleep 30 && node clean_live_data.js' >> /tmp/luopan_cron.log 2>&1
 
-# 大屏截图：首轮 19:45，之后 :15 至次日 11:15；完成后自动发图到飞书群。
-45 19 * * * cd /opt/douyin-fetcher && node live_gate_exec.js -- bash -lc '(node screen_capture.js || (echo "[SCREEN RETRY]" && sleep 300 && node screen_capture.js --retry)) && node extract_screen_summary.js' >> /tmp/screen_cron.log 2>&1
-15 20-23,0-11 * * * cd /opt/douyin-fetcher && node live_gate_exec.js -- bash -lc '(node screen_capture.js || (echo "[SCREEN RETRY]" && sleep 300 && node screen_capture.js --retry)) && node extract_screen_summary.js' >> /tmp/screen_cron.log 2>&1
+# 整点前整理可再生成缓存，不停止业务服务。
+58 19-23,0-11 * * * cd /opt/douyin-fetcher && bash prepare_capture_memory.sh >> /tmp/capture_memory.log 2>&1
+
+# 大屏截图：整点与主罗盘两个 CloakBrowser 并发；完成后自动发图到飞书群。
+0 20-23,0-12 * * * cd /opt/douyin-fetcher && node live_gate_exec.js -- bash -lc '(node screen_capture.js || (echo "[SCREEN RETRY]" && sleep 300 && node screen_capture.js --retry)) && node extract_screen_summary.js' >> /tmp/screen_cron.log 2>&1
 
 # 快检：首轮 19:35，之后每 5 分钟至次日 12:00。
 35-59/5 19 * * * /bin/bash -c "sleep $((RANDOM / 547)) && cd /opt/douyin-fetcher && node live_gate_exec.js -- flock -xn /tmp/quick_check.lock node quick_check.js" >> /tmp/quick_check.log 2>&1
